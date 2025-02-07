@@ -1,55 +1,48 @@
 import streamlit as st
-import pandas as pd
 import requests
+import pandas as pd
+import json
 
-# FastAPI endpoint URL
-API_URL = "https://atm-maintenance-prediction-using-random.onrender.com/predict"  # Update with your deployed API URL
+# Define the API URL (Make sure to change this to the correct URL if deployed)
+api_url = "https://atm-maintenance-prediction-using-random.onrender.com/predict"  # Adjust as per your deployment
 
-# Streamlit app UI
+# Streamlit interface for inputs
 st.title("ATM Maintenance Prediction")
 
-st.write("This app predicts whether ATM maintenance is needed based on the input features.")
+# Input fields
+air_temperature = st.number_input('Air temperature [K]', min_value=0.0, value=300.0)
+process_temperature = st.number_input('Process temperature [K]', min_value=0.0, value=290.0)
+rotational_speed = st.number_input('Rotational speed [rpm]', min_value=0, value=3500)
+torque = st.number_input('Torque [Nm]', min_value=0.0, value=55.0)
+tool_wear = st.number_input('Tool wear [min]', min_value=0.0, value=15.0)
 
-# Input fields for user to provide test data
-air_temp = st.number_input("Air temperature [K]", value=300.0)
-process_temp = st.number_input("Process temperature [K]", value=290.0)
-rotational_speed = st.number_input("Rotational speed [rpm]", value=3500)
-torque = st.number_input("Torque [Nm]", value=55.0)
-tool_wear = st.number_input("Tool wear [min]", value=15.0)
-type_m = st.selectbox("Type_M", [1, 0])
-type_l = st.selectbox("Type_L", [1, 0])
+# Type values (ensure they are integers)
+type_m = st.selectbox("Type_M", options=[0, 1], index=1)
+type_l = st.selectbox("Type_L", options=[0, 1], index=0)
 
-# Prepare the input data in the same format the model expects
+# Collect the data as a dictionary
 input_data = {
-    "Air temperature [K]": [air_temp],
-    "Process temperature [K]": [process_temp],
-    "Rotational speed [rpm]": [rotational_speed],
-    "Torque [Nm]": [torque],
-    "Tool wear [min]": [tool_wear],
-    "Type_M": [type_m],
-    "Type_L": [type_l]
+    "Air_temperature_K": air_temperature,
+    "Process_temperature_K": process_temperature,
+    "Rotational_speed_rpm": rotational_speed,
+    "Torque_Nm": torque,
+    "Tool_wear_min": tool_wear,
+    "Type_M": type_m,
+    "Type_L": type_l
 }
 
-# Convert the input data to a pandas DataFrame
-input_df = pd.DataFrame(input_data)
+# Convert the input data to JSON format
+input_json = json.dumps(input_data)
 
-# Display the input data
-st.write("Input Data (for prediction):")
-st.write(input_df)
-
-# Button to send the data for prediction
-if st.button("Predict Maintenance Status"):
+# Make a POST request to the FastAPI prediction endpoint
+if st.button('Predict'):
     try:
-        # Send data to FastAPI endpoint for prediction
-        response = requests.post(API_URL, json=input_data)
+        response = requests.post(api_url, data=input_json, headers={'Content-Type': 'application/json'})
         
-        # Check if the response is successful
         if response.status_code == 200:
-            prediction = response.json()
-            prediction_label = "Failure" if prediction['prediction'] == 1 else "No Failure"
-            st.write(f"Prediction: {prediction_label}")
+            result = response.json()
+            st.write(f"Prediction Result: {result['prediction']}")
         else:
-            st.error(f"Error: {response.status_code} - {response.text}")
+            st.error(f"Error {response.status_code}: {response.text}")
     except Exception as e:
-        st.error(f"Error during prediction: {str(e)}")
-
+        st.error(f"An error occurred: {e}")
